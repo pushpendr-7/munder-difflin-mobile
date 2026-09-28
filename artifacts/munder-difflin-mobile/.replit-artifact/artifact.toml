@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Munder Difflin Mobile"
+description = "A mobile-ready browser edition of Munder Difflin for managing the agent floor, tasks, inbox, memory, and terminal sessions from phones and desktop browsers without changing the original desktop app."
+version = "1.0.0"
+id = "artifacts/munder-difflin-mobile"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20976
+
+[services.development]
+run = "pnpm --filter @workspace/munder-difflin-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/munder-difflin-mobile", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/munder-difflin-mobile/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20976"
+BASE_PATH = "/"
