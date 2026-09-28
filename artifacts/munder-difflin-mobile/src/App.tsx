@@ -133,9 +133,17 @@ function AppShell() {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const snapshotQuery = useGetMobileSnapshot({
-    query: { queryKey: getGetMobileSnapshotQueryKey() },
+    query: {
+      queryKey: getGetMobileSnapshotQueryKey(),
+      refetchInterval: 5000,
+      refetchIntervalInBackground: true,
+      staleTime: 0,
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    },
   });
   const snapshot = snapshotQuery.data;
+  const officeLive = Boolean(snapshot?.connected) && !snapshotQuery.isRefetchError;
   const pageTitle = location === '/' ? 'Agent floor' : navItems.find((item) => item.href === location)?.label ?? 'Settings';
 
   return (
@@ -170,7 +178,7 @@ function AppShell() {
             <Settings size={18} />
             <span>Settings</span>
           </Link>
-          <ConnectionPill connected={snapshot?.connected ?? false} loading={snapshotQuery.isLoading} />
+          <ConnectionPill connected={officeLive} loading={snapshotQuery.isFetching} />
           <p className="sidebar-footer">A quiet window into a busy office.</p>
         </div>
       </aside>
@@ -187,9 +195,9 @@ function AppShell() {
             <h1 data-testid="text-page-title">{pageTitle}</h1>
           </div>
           <div className="topbar-actions">
-            <div className={`topbar-connection ${snapshot?.connected ? 'is-connected' : ''}`} data-testid="status-connection">
+            <div className={`topbar-connection ${officeLive ? 'is-connected' : ''}`} data-testid="status-connection">
               <span className="connection-light" />
-              <span className="connection-label">{snapshotQuery.isLoading ? 'Syncing' : snapshot?.connected ? 'Live' : 'Offline'}</span>
+              <span className="connection-label">{snapshotQuery.isFetching ? 'Syncing' : officeLive ? 'Live' : 'Offline'}</span>
             </div>
             <button className="icon-button" onClick={() => snapshotQuery.refetch()} disabled={snapshotQuery.isFetching} aria-label="Refresh snapshot" data-testid="button-refresh-snapshot">
               <RefreshCcw size={17} className={snapshotQuery.isFetching ? 'spin' : ''} />
@@ -198,9 +206,9 @@ function AppShell() {
         </header>
 
         <div className="page-scroll">
-          {snapshotQuery.isLoading ? <LoadingState /> : null}
-          {snapshotQuery.isError ? <ErrorState onRetry={() => snapshotQuery.refetch()} /> : null}
-          {snapshot && !snapshotQuery.isError ? (
+          {snapshotQuery.isLoading && !snapshot ? <LoadingState /> : null}
+          {snapshotQuery.isError && !snapshot ? <ErrorState onRetry={() => snapshotQuery.refetch()} /> : null}
+          {snapshot ? (
             <Switch>
               <Route path="/" component={() => <FloorPage snapshot={snapshot} />} />
               <Route path="/tasks" component={() => <TasksPage snapshot={snapshot} />} />
