@@ -135,10 +135,17 @@ function AppShell() {
   const snapshotQuery = useGetMobileSnapshot({
     query: {
       queryKey: getGetMobileSnapshotQueryKey(),
-      refetchInterval: 5000,
-      refetchIntervalInBackground: true,
-      staleTime: 0,
-      retry: 3,
+      // The phone-only build reads from local storage. Polling that same
+      // object every five seconds makes the whole screen look like it is
+      // constantly refreshing and needlessly wakes the Android WebView.
+      // A connected office gets a modest live interval; local mode refreshes
+      // only after an action or when the user taps refresh.
+      refetchInterval: import.meta.env.VITE_API_BASE_URL ? 15000 : false,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: import.meta.env.VITE_API_BASE_URL ? 10000 : Infinity,
+      retry: import.meta.env.VITE_API_BASE_URL ? 2 : false,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     },
   });
