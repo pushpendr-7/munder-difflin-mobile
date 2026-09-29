@@ -11,6 +11,7 @@ import {
   BrainCircuit,
   Check,
   ChevronDown,
+  ChevronRight,
   CircleDot,
   Clock3,
   Command,
@@ -18,7 +19,9 @@ import {
   Inbox,
   LayoutDashboard,
   ListTodo,
+  ListOrdered,
   Menu,
+  MessageCircle,
   MessageSquare,
   Moon,
   MoreHorizontal,
@@ -28,6 +31,7 @@ import {
   Send,
   Settings,
   Sun,
+  Radio,
   Wifi,
   WifiOff,
   X,
@@ -48,6 +52,7 @@ import type {
 } from '@workspace/api-client-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import NotFound from '@/pages/not-found';
+import type { PhoneQueueItem, PhoneSession, PhoneSnapshot, PhoneThreadMessage } from '@/lib/local-api';
 
 const queryClient = new QueryClient();
 
@@ -55,9 +60,22 @@ const navItems = [
   { href: '/', label: 'Floor', shortLabel: 'Floor', icon: LayoutDashboard },
   { href: '/tasks', label: 'Tasks', shortLabel: 'Tasks', icon: ListTodo },
   { href: '/inbox', label: 'Inbox', shortLabel: 'Inbox', icon: Inbox },
+  { href: '/queue', label: 'Message queue', shortLabel: 'Queue', icon: ListOrdered },
   { href: '/memory', label: 'Memory', shortLabel: 'Memory', icon: BrainCircuit },
   { href: '/activity', label: 'Activity', shortLabel: 'Activity', icon: Activity },
 ];
+
+type SnapshotView = MobileSnapshot & Pick<PhoneSnapshot, 'queue' | 'threads' | 'sessions'>;
+
+function phoneState(snapshot: MobileSnapshot): SnapshotView {
+  const value = snapshot as Partial<SnapshotView>;
+  return {
+    ...snapshot,
+    queue: value.queue ?? [],
+    threads: value.threads ?? {},
+    sessions: value.sessions ?? {},
+  };
+}
 
 const statusLabels: Record<string, string> = {
   backlog: 'Backlog',
@@ -220,6 +238,7 @@ function AppShell() {
               <Route path="/" component={() => <FloorPage snapshot={snapshot} />} />
               <Route path="/tasks" component={() => <TasksPage snapshot={snapshot} />} />
               <Route path="/inbox" component={() => <InboxPage snapshot={snapshot} />} />
+              <Route path="/queue" component={() => <QueuePage snapshot={snapshot} />} />
               <Route path="/memory" component={() => <MemoryPage snapshot={snapshot} />} />
               <Route path="/activity" component={() => <ActivityPage snapshot={snapshot} />} />
               <Route path="/settings" component={() => <SettingsPage snapshot={snapshot} />} />
@@ -356,6 +375,8 @@ function FloorPage({ snapshot }: { snapshot: MobileSnapshot }) {
         <CompactEmpty title="No agents on the floor" detail="When agents connect, their desks will appear here." />
       )}
 
+      <AgentSessions snapshot={snapshot} />
+
       <section className="lower-grid">
         <div className="panel">
           <div className="panel-heading"><div><p className="eyebrow">RECENT SIGNAL</p><h3>Activity stream</h3></div><Activity size={18} className="panel-heading-icon" /></div>
@@ -384,6 +405,41 @@ function AgentCard({ agent }: { agent: Agent }) {
       {agent.status === 'working' ? <div className="progress-track"><span style={{ width: `${Math.min(100, Math.max(0, agent.progress))}%` }} /></div> : <div className="progress-track progress-muted"><span style={{ width: '100%' }} /></div>}
       <div className="agent-card-foot"><span>{agent.status === 'working' ? `${agent.progress}% complete` : `Last active ${timeAgo(agent.lastActive)} ago`}</span><span className="desk-code">{agent.id.slice(0, 6).toUpperCase()}</span></div>
     </article>
+  );
+}
+
+function AgentSessions({ snapshot }: { snapshot: MobileSnapshot }) {
+  const state = phoneState(snapshot);
+  const active = state.agents.filter((agent) => state.sessions[agent.id]?.state !== 'idle');
+  return (
+    <section className="session-panel panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">PC-STYLE RUNTIME</p><h3>Agent sessions</h3></div>
+        <Radio size={18} className="panel-heading-icon pulse-icon" />
+      </div>
+      <div className="session-runtime-note">
+        <span className="session-runtime-dot" />
+        <span>{state.connected ? 'Connected to the office runtime' : 'Phone session layer active'}</span>
+        <Link href="/queue" className="text-link">Open queue <ArrowUpRight size={14} /></Link>
+      </div>
+      {active.length ? active.map((agent) => {
+        const session = state.sessions[agent.id];
+        return <SessionRow agent={agent} session={session} key={agent.id} />;
+      }) : (
+        <div className="session-idle"><Clock3 size={16} /><span>All sessions are idle. Send a note from Inbox to create a queued session.</span></div>
+      )}
+    </section>
+  );
+}
+
+function SessionRow({ agent, session }: { agent: Agent; session?: PhoneSession }) {
+  return (
+    <div className="session-row">
+      <AgentAvatar agent={agent} size="small" />
+      <div className="session-copy"><strong>{agent.name}</strong><span>{session?.lastEvent ?? 'Session ready'}</span></div>
+      <span className={`session-state session-state-${session?.state ?? 'idle'}`}>{session?.state ?? 'idle'}</span>
+      <ChevronRight size={16} className="session-arrow" />
+    </div>
   );
 }
 
@@ -437,7 +493,46 @@ function TaskCard({ task, onStatusChange, updating }: { task: Task; onStatusChan
   );
 }
 
+function QueuePage({ snapshot }: { snapshot: MobileSnapshot }) {
+  const state = phoneState(snapshot);
+  return (
+    <div className="content-wrap">
+      <PageIntro
+        eyebrow="MESSAGE QUEUE"
+        title="Work waiting at the desk."
+        detail="This is the same handoff layer the desktop floor uses: queued messages stay visible until an agent runtime takes them."
+        action={<Link href="/inbox" className="primary-button compose-button"><MessageCircle size={15} /> Open threads</Link>}
+      />
+      {state.queue.length ? (
+        <div className="queue-list">
+          {state.queue.map((item) => {
+            const agent = state.agents.find((candidate) => candidate.id === item.agentId);
+            return <QueueRow item={item} agent={agent} key={item.id} />;
+          })}
+        </div>
+      ) : (
+        <CompactEmpty title="Queue is clear" detail="Messages sent from Inbox will appear here before an agent session handles them." />
+      )}
+      <section className="queue-explainer panel">
+        <ListOrdered size={18} className="panel-heading-icon" />
+        <div><strong>Runtime status</strong><p>{state.connected ? 'The office runtime is connected and can drain this queue.' : 'The UI and queue are ready, but this standalone APK still needs an Android-compatible agent runtime to generate real replies.'}</p></div>
+      </section>
+    </div>
+  );
+}
+
+function QueueRow({ item, agent }: { item: PhoneQueueItem; agent?: Agent }) {
+  return (
+    <article className="queue-row">
+      {agent ? <AgentAvatar agent={agent} size="small" /> : <div className="empty-icon"><Bot size={16} /></div>}
+      <div className="queue-copy"><div className="queue-topline"><strong>{agent?.name ?? 'Agent'}</strong><span>{timeAgo(item.createdAt)} ago</span></div><h3>{item.subject}</h3><p>{item.body}</p></div>
+      <span className={`queue-status queue-status-${item.status}`}>{item.status === 'waiting_for_engine' ? 'Waiting' : 'Queued'}</span>
+    </article>
+  );
+}
+
 function InboxPage({ snapshot }: { snapshot: MobileSnapshot }) {
+  const phone = phoneState(snapshot);
   const [selectedAgentId, setSelectedAgentId] = useState(snapshot.agents[0]?.id ?? '');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -446,6 +541,12 @@ function InboxPage({ snapshot }: { snapshot: MobileSnapshot }) {
   const queryClient = useQueryClient();
   const sendMessage = useSendMobileAgentMessage();
   const messages = snapshot.inbox.filter((message) => filter === 'all' || message.unread);
+  const selectedAgent = snapshot.agents.find((agent) => agent.id === selectedAgentId);
+  const selectedThread = phone.threads[selectedAgentId] ?? snapshot.inbox
+    .filter((message) => message.agentId === selectedAgentId)
+    .slice()
+    .reverse()
+    .map((message) => ({ id: message.id, agentId: message.agentId, subject: message.subject, body: message.body, timestamp: message.timestamp, direction: message.kind === 'sent' ? 'human' : 'agent' as const }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!selectedAgentId || !subject.trim() || !body.trim()) return;
@@ -463,6 +564,18 @@ function InboxPage({ snapshot }: { snapshot: MobileSnapshot }) {
       <PageIntro eyebrow="INBOX / AGENT MESSAGES" title="Keep the loop tight." detail={`${snapshot.inbox.filter((message) => message.unread).length} unread messages from the floor.`} action={<button className="primary-button compose-button" onClick={() => setShowComposer((value) => !value)} data-testid="button-compose-message"><Send size={15} /> {showComposer ? 'Close composer' : 'Message an agent'}</button>} />
       {showComposer ? <form className="composer-card" onSubmit={submit} data-testid="form-send-message"><div className="composer-head"><div><p className="eyebrow">NEW NOTE TO THE FLOOR</p><h3>Send a message</h3></div><button type="button" className="icon-button" onClick={() => setShowComposer(false)} aria-label="Close message form" data-testid="button-close-composer"><X size={18} /></button></div><label className="field-label">Agent<select value={selectedAgentId} onChange={(event) => setSelectedAgentId(event.target.value)} data-testid="select-message-agent"><option value="">Choose an agent</option>{snapshot.agents.map((agent) => <option value={agent.id} key={agent.id}>{agent.name} — {agent.role}</option>)}</select></label><label className="field-label">Subject<input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="A clear handoff" required data-testid="input-message-subject" /></label><label className="field-label">Message<textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Give the desk enough context to act." rows={4} required data-testid="input-message-body" /></label><div className="composer-foot"><span>Sent directly to the selected desk.</span><button className="primary-button" type="submit" disabled={sendMessage.isPending || !selectedAgentId} data-testid="button-send-message">{sendMessage.isPending ? 'Sending…' : 'Send message'} <ArrowUpRight size={15} /></button></div></form> : null}
       <div className="inbox-toolbar"><div className="filter-scroll"><button className={`filter-chip ${filter === 'all' ? 'filter-chip-active' : ''}`} onClick={() => setFilter('all')} data-testid="button-filter-inbox-all">All messages</button><button className={`filter-chip ${filter === 'unread' ? 'filter-chip-active' : ''}`} onClick={() => setFilter('unread')} data-testid="button-filter-inbox-unread">Unread <span>{snapshot.inbox.filter((message) => message.unread).length}</span></button></div><span className="message-count">{messages.length} messages</span></div>
+      <div className="thread-layout">
+        <div className="thread-agent-strip">
+          {snapshot.agents.map((agent) => <button className={`thread-agent ${agent.id === selectedAgentId ? 'thread-agent-active' : ''}`} onClick={() => setSelectedAgentId(agent.id)} key={agent.id}><AgentAvatar agent={agent} size="small" /><span>{agent.name}</span><small>{phone.sessions[agent.id]?.state ?? 'idle'}</small></button>)}
+        </div>
+        <section className="conversation-thread">
+          <div className="conversation-head">
+            <div>{selectedAgent ? <AgentAvatar agent={selectedAgent} size="small" /> : <MessageCircle size={18} />}<div><p className="eyebrow">ACTIVE SESSION</p><h3>{selectedAgent?.name ?? 'Choose an agent'}</h3></div></div>
+            <span className={`session-state session-state-${phone.sessions[selectedAgentId]?.state ?? 'idle'}`}>{phone.sessions[selectedAgentId]?.state ?? 'idle'}</span>
+          </div>
+          {selectedThread.length ? <div className="thread-messages">{selectedThread.map((message) => <ThreadBubble message={message} key={message.id} />)}</div> : <div className="thread-empty"><MessageCircle size={18} /><span>This thread is empty. Start a handoff to this desk.</span></div>}
+        </section>
+      </div>
       {messages.length ? <div className="message-list">{messages.map((message) => <MessageCard message={message} agent={snapshot.agents.find((agent) => agent.id === message.agentId)} key={message.id} />)}</div> : <CompactEmpty title={filter === 'unread' ? 'You are all caught up' : 'No messages yet'} detail={filter === 'unread' ? 'The floor has no unread signal for you.' : 'When an agent writes, it will land here.'} />}
     </div>
   );
@@ -475,6 +588,17 @@ function MessageCard({ message, agent }: { message: InboxMessage; agent?: Agent 
       <div className="message-content"><div className="message-topline"><div><strong>{message.agentName}</strong><span className={`message-kind kind-${message.kind}`}>{message.kind}</span></div><time>{timeAgo(message.timestamp)} ago</time></div><h3>{message.subject}</h3><p>{message.body}</p></div>
       {message.unread ? <span className="unread-marker" aria-label="Unread message" data-testid={`status-unread-${message.id}`} /> : null}
     </article>
+  );
+}
+
+function ThreadBubble({ message }: { message: PhoneThreadMessage }) {
+  return (
+    <div className={`thread-bubble thread-bubble-${message.direction}`}>
+      <span className="thread-bubble-label">{message.direction === 'human' ? 'You' : message.direction === 'agent' ? 'Agent' : 'System'}</span>
+      {message.subject ? <strong>{message.subject}</strong> : null}
+      <p>{message.body}</p>
+      <time>{timeAgo(message.timestamp)} ago</time>
+    </div>
   );
 }
 
