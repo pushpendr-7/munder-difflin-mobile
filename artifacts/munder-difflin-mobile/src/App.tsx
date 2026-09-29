@@ -52,7 +52,7 @@ import type {
 } from '@workspace/api-client-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import NotFound from '@/pages/not-found';
-import { getOmniRouteConfig, saveOmniRouteConfig, type OmniRouteConfig, type PhoneQueueItem, type PhoneSession, type PhoneSnapshot, type PhoneThreadMessage } from '@/lib/local-api';
+import { getOmniRouteConfig, kickQueueDrain, saveOmniRouteConfig, type OmniRouteConfig, type PhoneQueueItem, type PhoneSession, type PhoneSnapshot, type PhoneThreadMessage } from '@/lib/local-api';
 
 const queryClient = new QueryClient();
 
@@ -167,6 +167,13 @@ function AppShell() {
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     },
   });
+  useEffect(() => {
+    const refreshLocalSnapshot = () => {
+      void queryClient.invalidateQueries({ queryKey: getGetMobileSnapshotQueryKey() });
+    };
+    window.addEventListener('munder-snapshot-updated', refreshLocalSnapshot);
+    return () => window.removeEventListener('munder-snapshot-updated', refreshLocalSnapshot);
+  }, []);
   const snapshot = snapshotQuery.data;
   const officeLive = Boolean(snapshot?.connected) && !snapshotQuery.isRefetchError;
   const pageTitle = location === '/' ? 'Agent floor' : navItems.find((item) => item.href === location)?.label ?? 'Settings';
@@ -495,13 +502,26 @@ function TaskCard({ task, onStatusChange, updating }: { task: Task; onStatusChan
 
 function QueuePage({ snapshot }: { snapshot: MobileSnapshot }) {
   const state = phoneState(snapshot);
+  const queryClient = useQueryClient();
+  const [retrying, setRetrying] = useState(false);
+  const failedCount = state.queue.filter((item) => item.status === 'failed').length;
+  const retryFailed = async () => {
+    setRetrying(true);
+    try {
+      await fetch('/api/mobile/queue/retry', { method: 'POST' });
+      await queryClient.invalidateQueries({ queryKey: getGetMobileSnapshotQueryKey() });
+    } finally {
+      setRetrying(false);
+    }
+  };
+  const runtime = getOmniRouteConfig();
   return (
     <div className="content-wrap">
       <PageIntro
         eyebrow="MESSAGE QUEUE"
         title="Work waiting at the desk."
         detail="This is the same handoff layer the desktop floor uses: queued messages stay visible until an agent runtime takes them."
-        action={<Link href="/inbox" className="primary-button compose-button"><MessageCircle size={15} /> Open threads</Link>}
+        action={<div className="queue-actions"><Link href="/inbox" className="primary-button compose-button"><MessageCircle size={15} /> Open threads</Link>{failedCount ? <button className="secondary-button" onClick={retryFailed} disabled={retrying}><RefreshCcw size={15} className={retrying ? 'spin' : ''} /> {retrying ? 'Retrying…' : `Retry ${failedCount} blocked`}</button> : null}</div>}
       />
       {state.queue.length ? (
         <div className="queue-list">
@@ -515,18 +535,25 @@ function QueuePage({ snapshot }: { snapshot: MobileSnapshot }) {
       )}
       <section className="queue-explainer panel">
         <ListOrdered size={18} className="panel-heading-icon" />
-        <div><strong>Runtime status</strong><p>{state.connected ? 'The office runtime is connected and can drain this queue.' : 'The UI and queue are ready, but this standalone APK still needs an Android-compatible agent runtime to generate real replies.'}</p></div>
+        <div><strong>Runtime status</strong><p>{state.connected ? 'The office runtime is connected and can drain this queue.' : runtime.baseUrl && runtime.apiKey ? 'OmniRoute is configured. The phone will retry queued messages when the endpoint is reachable.' : 'The queue is ready. Add an OmniRoute endpoint in Settings to generate real replies from this APK.'}</p></div>
       </section>
     </div>
   );
 }
 
 function QueueRow({ item, agent }: { item: PhoneQueueItem; agent?: Agent }) {
+  const statusLabel = item.status === 'waiting_for_engine'
+    ? 'Waiting'
+    : item.status === 'processing'
+      ? 'Working'
+      : item.status === 'failed'
+        ? 'Blocked'
+        : 'Queued';
   return (
     <article className="queue-row">
       {agent ? <AgentAvatar agent={agent} size="small" /> : <div className="empty-icon"><Bot size={16} /></div>}
-      <div className="queue-copy"><div className="queue-topline"><strong>{agent?.name ?? 'Agent'}</strong><span>{timeAgo(item.createdAt)} ago</span></div><h3>{item.subject}</h3><p>{item.body}</p></div>
-      <span className={`queue-status queue-status-${item.status}`}>{item.status === 'waiting_for_engine' ? 'Waiting' : 'Queued'}</span>
+      <div className="queue-copy"><div className="queue-topline"><strong>{agent?.name ?? 'Agent'}</strong><span>{timeAgo(item.createdAt)} ago</span></div><h3>{item.subject}</h3><p>{item.lastError ?? item.body}</p></div>
+      <span className={`queue-status queue-status-${item.status}`}>{statusLabel}</span>
     </article>
   );
 }
@@ -660,6 +687,7 @@ function SettingsPage({ snapshot }: { snapshot: MobileSnapshot }) {
   const saveRuntime = (event: FormEvent) => {
     event.preventDefault();
     saveOmniRouteConfig(omniRoute);
+    kickQueueDrain();
     setOmniSaved(omniRoute.baseUrl && omniRoute.apiKey ? 'OmniRoute is ready for real agent replies.' : 'Runtime settings cleared; messages will remain in the local queue.');
   };
   return (
