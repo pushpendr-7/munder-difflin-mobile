@@ -52,7 +52,7 @@ import type {
 } from '@workspace/api-client-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import NotFound from '@/pages/not-found';
-import type { PhoneQueueItem, PhoneSession, PhoneSnapshot, PhoneThreadMessage } from '@/lib/local-api';
+import { getOmniRouteConfig, saveOmniRouteConfig, type OmniRouteConfig, type PhoneQueueItem, type PhoneSession, type PhoneSnapshot, type PhoneThreadMessage } from '@/lib/local-api';
 
 const queryClient = new QueryClient();
 
@@ -646,6 +646,8 @@ function ActivityRow({ item, expanded = false }: { item: ActivityItem; expanded?
 function SettingsPage({ snapshot }: { snapshot: MobileSnapshot }) {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
   const [installMessage, setInstallMessage] = useState('');
+  const [omniRoute, setOmniRoute] = useState<OmniRouteConfig>(() => getOmniRouteConfig());
+  const [omniSaved, setOmniSaved] = useState('');
   const toggleTheme = () => {
     const next = !dark;
     setDark(next);
@@ -655,13 +657,31 @@ function SettingsPage({ snapshot }: { snapshot: MobileSnapshot }) {
   const install = async () => {
     setInstallMessage('Use your browser menu to choose “Install app” or “Add to home screen”.');
   };
+  const saveRuntime = (event: FormEvent) => {
+    event.preventDefault();
+    saveOmniRouteConfig(omniRoute);
+    setOmniSaved(omniRoute.baseUrl && omniRoute.apiKey ? 'OmniRoute is ready for real agent replies.' : 'Runtime settings cleared; messages will remain in the local queue.');
+  };
   return (
     <div className="content-wrap settings-wrap">
       <PageIntro eyebrow="CONTROL ROOM" title="A few things worth knowing." detail="Connection details and the best way to keep the office close on your phone." />
       <section className="settings-card connection-card"><div className="settings-icon settings-icon-teal">{snapshot.connected ? <Wifi size={20} /> : <WifiOff size={20} />}</div><div className="settings-copy"><p className="eyebrow">CONNECTION</p><h3>{snapshot.connected ? 'Office is connected' : 'Office is currently offline'}</h3><p>{snapshot.connected ? `Last floor sync was ${timeAgo(snapshot.updatedAt)} ago.` : 'The last snapshot is kept on screen while we wait for the line to come back.'}</p></div><span className={`connection-badge ${snapshot.connected ? 'connection-badge-live' : ''}`}><span />{snapshot.connected ? 'Live' : 'Paused'}</span></section>
       <section className="settings-card install-card"><div className="settings-icon settings-icon-amber"><ExternalLink size={20} /></div><div className="settings-copy"><p className="eyebrow">MOBILE WINDOW</p><h3>Keep Munder Difflin one tap away.</h3><p>Install this command center to your home screen for a focused, full-screen view of the floor.</p>{installMessage ? <p className="install-message">{installMessage}</p> : null}<button className="secondary-button" onClick={install} data-testid="button-install-guidance">Show install guidance <ArrowUpRight size={15} /></button></div></section>
       <section className="settings-card preference-card"><div className="settings-icon settings-icon-slate">{dark ? <Moon size={20} /> : <Sun size={20} />}</div><div className="settings-copy"><p className="eyebrow">APPEARANCE</p><h3>{dark ? 'Night shift' : 'Day shift'}</h3><p>Choose the room lighting that works best for your screen and surroundings.</p></div><button className={`theme-toggle ${dark ? 'theme-toggle-on' : ''}`} onClick={toggleTheme} aria-label="Toggle dark mode" data-testid="button-toggle-theme"><span>{dark ? <Moon size={14} /> : <Sun size={14} />}</span></button></section>
-       <section className="settings-note"><Archive size={16} /><p>The desktop build uses Electron, native PTYs, local SQLite, filesystem and git access. Android browsers do not provide those OS features, so this mobile window keeps the office control surface while local terminals and files remain on the desktop app.</p></section>
+      <form className="settings-card runtime-card" onSubmit={saveRuntime}>
+        <div className="settings-icon settings-icon-teal"><Radio size={20} /></div>
+        <div className="settings-copy">
+          <p className="eyebrow">REAL-TIME AGENT RUNTIME</p>
+          <h3>Connect OmniRoute</h3>
+          <p>OmniRoute is an OpenAI-compatible gateway. The key stays in this phone's local storage and is never committed to the APK source.</p>
+          <label className="field-label">OmniRoute base URL<input value={omniRoute.baseUrl} onChange={(event) => setOmniRoute({ ...omniRoute, baseUrl: event.target.value })} placeholder="https://your-omniroute-host/v1" autoCapitalize="none" /></label>
+          <label className="field-label">API key<input type="password" value={omniRoute.apiKey} onChange={(event) => setOmniRoute({ ...omniRoute, apiKey: event.target.value })} placeholder="Paste your OmniRoute key" autoCapitalize="none" /></label>
+          <label className="field-label">Model<input value={omniRoute.model} onChange={(event) => setOmniRoute({ ...omniRoute, model: event.target.value })} placeholder="auto" autoCapitalize="none" /></label>
+          {omniSaved ? <p className="install-message">{omniSaved}</p> : null}
+          <button className="secondary-button" type="submit">Save runtime settings <ArrowUpRight size={15} /></button>
+        </div>
+      </form>
+      <section className="settings-note"><Archive size={16} /><p>Without an OmniRoute endpoint, this APK still works as a local command center and queue. With OmniRoute configured, messages are sent to the selected agent role and the real reply is written back into its thread and inbox.</p></section>
     </div>
   );
 }
