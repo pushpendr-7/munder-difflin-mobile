@@ -1285,3 +1285,58 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Desktop-floor concepts carried into the phone window. */
+.session-panel { margin-top: 27px; padding: 18px; }
+.session-runtime-note { display: flex; align-items: center; gap: 8px; margin: 0 0 13px; color: var(--ink-faint); font-family: var(--app-font-mono); font-size: 0.55rem; }
+.session-runtime-note .text-link { margin-left: auto; font-family: var(--app-font-mono); font-size: 0.55rem; }
+.session-runtime-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 0 3px hsl(34 83% 48% / 0.12); }
+.session-row { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding: 12px 0 0; }
+.session-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.session-copy strong { color: var(--ink); font-size: 0.7rem; }
+.session-copy span { overflow: hidden; color: var(--ink-soft); font-size: 0.61rem; text-overflow: ellipsis; white-space: nowrap; }
+.session-state, .queue-status { border-radius: 999px; padding: 4px 7px; color: var(--ink-faint); background: hsl(var(--foreground) / 0.06); font-family: var(--app-font-mono); font-size: 0.48rem; text-transform: uppercase; }
+.session-state-waiting, .queue-status-waiting_for_engine { color: var(--amber); background: hsl(34 83% 48% / 0.12); }
+.session-state-working { color: var(--teal); background: hsl(174 39% 37% / 0.12); }
+.session-state-blocked { color: var(--coral); background: hsl(3 68% 48% / 0.12); }
+.session-arrow { color: var(--ink-faint); }
+.session-idle { display: flex; align-items: center; gap: 8px; color: var(--ink-faint); font-size: 0.64rem; }
+.queue-list { display: grid; gap: 9px; }
+.queue-row { display: flex; align-items: flex-start; gap: 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); padding: 14px; }
+.queue-copy { min-width: 0; flex: 1; }
+.queue-topline { display: flex; justify-content: space-between; gap: 8px; }
+.queue-topline strong { color: var(--teal); font-family: var(--app-font-mono); font-size: 0.56rem; text-transform: uppercase; }
+.queue-topline span { color: var(--ink-faint); font-family: var(--app-font-mono); font-size: 0.5rem; }
+.queue-copy h3 { margin: 6px 0 4px; color: var(--ink); font-size: 0.78rem; }
+.queue-copy p { overflow: hidden; color: var(--ink-soft); font-size: 0.65rem; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.queue-explainer { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; padding: 15px; }
+.queue-explainer .panel-heading-icon { flex: 0 0 auto; color: var(--amber); }
+.queue-explainer strong { color: var(--ink); font-size: 0.68rem; }
+.queue-explainer p { margin-top: 4px; color: var(--ink-soft); font-size: 0.62rem; line-height: 1.5; }
+.thread-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 11px; margin-bottom: 22px; }
+.thread-agent-strip { display: flex; flex-direction: column; gap: 5px; }
+.thread-agent { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; padding: 8px; color: var(--ink-soft); text-align: left; cursor: pointer; }
+.thread-agent span { font-size: 0.65rem; font-weight: 700; }
+.thread-agent small { grid-column: 2; color: var(--ink-faint); font-family: var(--app-font-mono); font-size: 0.48rem; text-transform: uppercase; }
+.thread-agent-active { border-color: var(--line); background: var(--paper); color: var(--teal); }
+.conversation-thread { min-width: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.conversation-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding: 13px 15px; }
+.conversation-head > div { display: flex; align-items: center; gap: 9px; }
+.conversation-head h3 { margin-top: 3px; color: var(--ink); font-size: 0.76rem; }
+.thread-messages { display: flex; max-height: 330px; flex-direction: column; gap: 9px; overflow-y: auto; padding: 13px; }
+.thread-bubble { max-width: 86%; border: 1px solid var(--line); border-radius: 9px 9px 9px 3px; padding: 9px 10px; }
+.thread-bubble-human { align-self: flex-end; border-color: hsl(174 39% 37% / 0.2); border-radius: 9px 9px 3px 9px; background: hsl(174 39% 37% / 0.08); }
+.thread-bubble-label { display: block; margin-bottom: 4px; color: var(--ink-faint); font-family: var(--app-font-mono); font-size: 0.47rem; text-transform: uppercase; }
+.thread-bubble strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 0.64rem; }
+.thread-bubble p { color: var(--ink-soft); font-size: 0.64rem; line-height: 1.5; }
+.thread-bubble time { display: block; margin-top: 6px; color: var(--ink-faint); font-family: var(--app-font-mono); font-size: 0.46rem; }
+.thread-empty { display: flex; min-height: 125px; align-items: center; justify-content: center; gap: 8px; color: var(--ink-faint); font-size: 0.62rem; }
+
+@media (max-width: 760px) {
+  .thread-layout { display: block; }
+  .thread-agent-strip { flex-direction: row; margin-bottom: 9px; overflow-x: auto; }
+  .thread-agent { min-width: 82px; }
+  .thread-agent small { display: none; }
+  .session-panel { padding: 14px; }
+  .queue-row { padding: 12px; }
+}
