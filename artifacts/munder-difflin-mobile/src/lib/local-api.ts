@@ -2,6 +2,37 @@ import type { Agent, MobileSnapshot } from '@workspace/api-client-react';
 
 const STORAGE_KEY = 'munder-difflin-mobile-snapshot-v1';
 
+export type PhoneQueueItem = {
+  id: string;
+  agentId: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  status: 'queued' | 'waiting_for_engine';
+};
+
+export type PhoneThreadMessage = {
+  id: string;
+  agentId: string;
+  subject: string;
+  body: string;
+  timestamp: string;
+  direction: 'human' | 'agent' | 'system';
+};
+
+export type PhoneSession = {
+  agentId: string;
+  state: 'idle' | 'waiting' | 'working' | 'blocked';
+  lastEvent: string;
+  lastEventAt: string;
+};
+
+export type PhoneSnapshot = MobileSnapshot & {
+  queue: PhoneQueueItem[];
+  threads: Record<string, PhoneThreadMessage[]>;
+  sessions: Record<string, PhoneSession>;
+};
+
 const now = () => new Date().toISOString();
 const makeId = (prefix: string) => {
   const uuid = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2);
@@ -14,23 +45,42 @@ const seedAgents: Agent[] = [
   { id: 'pam', name: 'Pam', role: 'Coordinator', provider: 'Phone mode', model: 'Local', status: 'idle', currentTask: null, progress: 0, color: '#b98ad9', lastActive: now() },
 ];
 
-function initialSnapshot(): MobileSnapshot {
+function initialSnapshot(): PhoneSnapshot {
+  const timestamp = now();
   return {
     workspaceName: 'Munder Difflin · Phone mode',
     connected: false,
-    updatedAt: now(),
+    updatedAt: timestamp,
     agents: seedAgents,
     tasks: [],
     inbox: [],
     memory: [],
-    activity: [{ id: makeId('activity'), label: 'Phone mode ready', detail: 'Local mobile workspace is ready to use.', timestamp: now(), type: 'system' }],
+    activity: [{ id: makeId('activity'), label: 'Phone mode ready', detail: 'Local mobile workspace is ready to use.', timestamp, type: 'system' }],
+    queue: [],
+    threads: {},
+    sessions: Object.fromEntries(seedAgents.map((agent) => [agent.id, {
+      agentId: agent.id,
+      state: 'idle' as const,
+      lastEvent: 'Session ready',
+      lastEventAt: timestamp,
+    }])),
   };
 }
 
-function loadSnapshot(): MobileSnapshot {
+function loadSnapshot(): PhoneSnapshot {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored) as MobileSnapshot;
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<PhoneSnapshot>;
+      const base = initialSnapshot();
+      return {
+        ...base,
+        ...parsed,
+        queue: parsed.queue ?? base.queue,
+        threads: parsed.threads ?? base.threads,
+        sessions: parsed.sessions ?? base.sessions,
+      };
+    }
   } catch {
     // A private browsing/WebView storage failure should not stop the app booting.
   }
@@ -87,10 +137,24 @@ export function installLocalApiFallback(): void {
         return jsonResponse({ message: 'Agent, subject and message are required.' }, 400);
       }
       const timestamp = now();
+      const subject = body.subject.trim();
+      const messageBody = body.body.trim();
+      const threadMessage: PhoneThreadMessage = {
+        id: makeId('thread'),
+        agentId: agent.id,
+        subject,
+        body: messageBody,
+        timestamp,
+        direction: 'human',
+      };
       snapshot = {
         ...snapshot,
-        inbox: [{ id: makeId('message'), agentId: agent.id, agentName: agent.name, subject: body.subject.trim(), body: body.body.trim(), timestamp, unread: false, kind: 'sent' }, ...snapshot.inbox],
-        activity: [{ id: makeId('activity'), label: 'Message sent', detail: 'A note was saved for ' + agent.name + '.', timestamp, type: 'message' }, ...snapshot.activity],
+        agents: snapshot.agents.map((item) => item.id === agent.id ? { ...item, status: 'waiting', currentTask: 'Waiting for agent runtime', lastActive: timestamp } : item),
+        inbox: [{ id: makeId('message'), agentId: agent.id, agentName: agent.name, subject, body: messageBody, timestamp, unread: false, kind: 'sent' }, ...snapshot.inbox],
+        queue: [{ id: makeId('queue'), agentId: agent.id, subject, body: messageBody, createdAt: timestamp, status: 'waiting_for_engine' }, ...snapshot.queue],
+        threads: { ...snapshot.threads, [agent.id]: [...(snapshot.threads[agent.id] ?? []), threadMessage] },
+        sessions: { ...snapshot.sessions, [agent.id]: { agentId: agent.id, state: 'waiting', lastEvent: 'Message queued; agent runtime is not connected', lastEventAt: timestamp } },
+        activity: [{ id: makeId('activity'), label: 'Message queued', detail: agent.name + ' is waiting for the agent runtime.', timestamp, type: 'message' }, ...snapshot.activity],
       };
       saveSnapshot();
       return jsonResponse({ ok: true });
