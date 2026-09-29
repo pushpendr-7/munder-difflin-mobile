@@ -1186,6 +1186,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .settings-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 23px; border-top: 1px solid var(--line); color: var(--ink-faint); padding: 18px 2px; }
 .settings-note svg { flex: 0 0 auto; margin-top: 2px; }
 .settings-note p { margin: 0; font-size: 0.65rem; line-height: 1.6; }
+.runtime-card { align-items: flex-start; }
+.runtime-card .settings-copy { display: flex; flex-direction: column; gap: 7px; }
+.runtime-card .settings-copy p:not(.eyebrow) { margin-bottom: 2px; }
+.runtime-card .field-label { margin-top: 3px; }
+.runtime-card .secondary-button { align-self: flex-start; margin-top: 6px; }
 
 .compact-empty { display: flex; align-items: center; gap: 13px; border: 1px dashed var(--line-strong); border-radius: 9px; padding: 22px 17px; }
 .empty-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 9px 9px 9px 3px; background: hsl(var(--foreground) / 0.06); color: var(--ink-faint); }
