@@ -1304,8 +1304,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .session-state-waiting, .queue-status-waiting_for_engine { color: var(--amber); background: hsl(34 83% 48% / 0.12); }
 .session-state-working { color: var(--teal); background: hsl(174 39% 37% / 0.12); }
 .session-state-blocked { color: var(--coral); background: hsl(3 68% 48% / 0.12); }
+.queue-status-processing, .queue-status-queued { color: var(--teal); background: hsl(174 39% 37% / 0.12); }
+.queue-status-failed { color: var(--coral); background: hsl(3 68% 48% / 0.12); }
 .session-arrow { color: var(--ink-faint); }
 .session-idle { display: flex; align-items: center; gap: 8px; color: var(--ink-faint); font-size: 0.64rem; }
+.queue-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .queue-list { display: grid; gap: 9px; }
 .queue-row { display: flex; align-items: flex-start; gap: 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); padding: 14px; }
 .queue-copy { min-width: 0; flex: 1; }
