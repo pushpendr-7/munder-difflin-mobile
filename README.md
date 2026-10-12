@@ -9,6 +9,7 @@ A phone-first Munder Difflin workspace for Android and mobile browsers. The app 
 - Agent inbox, message composer, and conversation threads
 - Persistent phone-side message queue with retries and resume handling
 - Shared-memory and activity views
+- Android-only app-private file browser/editor and user-run shell command screen
 - Settings for appearance, installation guidance, and an OmniRoute AI endpoint
 - PWA manifest/service worker and a Capacitor Android wrapper
 - GitHub Actions workflow that builds a debug APK and uploads it as an artifact
@@ -21,7 +22,15 @@ To generate AI replies, open **Settings** in the app and enter an OpenAI-compati
 
 The OmniRoute URL can be a base such as `https://your-host/v1` or a full `.../chat/completions` URL. The key is stored in the phone's local WebView storage and is not committed to this repository or bundled into the APK. Anyone with access to the unlocked device or its app data may be able to access it, so do not use a shared or untrusted device for a sensitive key.
 
-Phone-only mode uses the configured AI service for replies; it does not run the desktop Electron app's local PTY, filesystem, SQLite, or Git tools on Android. Those desktop-specific capabilities are not included in this mobile repository.
+## Android private workspace and shell
+
+The Android APK includes a Capacitor native plugin that creates a workspace inside the app's private files directory. The **Files** screen can list folders and create, read, edit, save, or delete text files there. File-browser operations reject absolute paths, traversal outside the workspace, and symbolic-link paths; the editor is limited to 1 MiB per file.
+
+The **Terminal** screen starts a user-entered command in `/system/bin/sh`, initially from that workspace, and streams stdout/stderr back into the app. Commands run as the app's Android UID, without root. This is not a security jail around the workspace: a command can access other files Android permits to this app. Only run commands you trust. No AI agent runs terminal commands automatically.
+
+This first native shell is a streamed subprocess, **not a pseudo-terminal (PTY)**. It does not support terminal resizing, job control, or full-screen TTY programs. The APK does not bundle Node.js, Python, Git, Claude Code, Codex, Gemini CLI, Aider, or other third-party CLI providers; the terminal can only run commands that are already available to the Android app. The “Insert CLI check” button puts a `command -v` probe into the input for the user to run. Provider binaries, Android-compatible packaging, and their authentication flows need to be added separately before those providers can run standalone.
+
+The native Files and Terminal screens work only in the installed Android APK. A mobile browser/PWA has no access to this plugin, and the Android app's private workspace is separate from shared phone storage. Phone-only mode still uses the configured AI service for agent-style replies; it does not run the desktop Electron app's local PTY, SQLite, Git integration, or autonomous coding-agent tools.
 
 ## Optional connection to a deployed office API
 

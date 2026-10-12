@@ -10,7 +10,8 @@
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.3"
+    "@replit/connectors-sdk": "^0.4.3",
+    "@workspace/android-runtime": "workspace:*"
   },
   "devDependencies": {
     "@capacitor/android": "7.4.4",
