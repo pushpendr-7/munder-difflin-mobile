@@ -1,0 +1,16 @@
+{
+  "name": "@workspace/android-runtime",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@capacitor/core": "^7.4.4"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}
