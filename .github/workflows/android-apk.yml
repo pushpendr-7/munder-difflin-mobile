@@ -1,6 +1,9 @@
 name: Build Android APK
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -43,7 +46,13 @@ jobs:
           java-version: '21'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+
+      - name: Run mobile agent tests
+        run: pnpm run test
 
       - name: Build web assets
         env:

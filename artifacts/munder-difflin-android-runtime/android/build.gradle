@@ -1,0 +1,17 @@
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.munderdifflin.runtime'
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+}
+

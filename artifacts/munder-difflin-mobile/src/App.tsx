@@ -16,6 +16,7 @@ import {
   Clock3,
   Command,
   ExternalLink,
+  Folder,
   Inbox,
   LayoutDashboard,
   ListTodo,
@@ -31,9 +32,11 @@ import {
   Send,
   Settings,
   Sun,
+  Terminal,
   Radio,
   Wifi,
   WifiOff,
+  WandSparkles,
   X,
 } from 'lucide-react';
 import {
@@ -52,6 +55,8 @@ import type {
 } from '@workspace/api-client-react';
 import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import NotFound from '@/pages/not-found';
+import { TerminalPage, WorkspacePage } from '@/pages/android-runtime';
+import { MobileAgentPage } from '@/pages/mobile-agent';
 import { getOmniRouteConfig, kickQueueDrain, saveOmniRouteConfig, type OmniRouteConfig, type PhoneQueueItem, type PhoneSession, type PhoneSnapshot, type PhoneThreadMessage } from '@/lib/local-api';
 
 const queryClient = new QueryClient();
@@ -60,9 +65,12 @@ const navItems = [
   { href: '/', label: 'Floor', shortLabel: 'Floor', icon: LayoutDashboard },
   { href: '/tasks', label: 'Tasks', shortLabel: 'Tasks', icon: ListTodo },
   { href: '/inbox', label: 'Inbox', shortLabel: 'Inbox', icon: Inbox },
+  { href: '/agent', label: 'Code agent', shortLabel: 'Agent', icon: WandSparkles },
   { href: '/queue', label: 'Message queue', shortLabel: 'Queue', icon: ListOrdered },
   { href: '/memory', label: 'Memory', shortLabel: 'Memory', icon: BrainCircuit },
   { href: '/activity', label: 'Activity', shortLabel: 'Activity', icon: Activity },
+  { href: '/workspace', label: 'Private files', shortLabel: 'Files', icon: Folder },
+  { href: '/terminal', label: 'Android terminal', shortLabel: 'Terminal', icon: Terminal },
 ];
 
 type SnapshotView = MobileSnapshot & Pick<PhoneSnapshot, 'queue' | 'threads' | 'sessions'>;
@@ -244,6 +252,9 @@ function AppShell() {
             <Switch>
               <Route path="/" component={() => <FloorPage snapshot={snapshot} />} />
               <Route path="/tasks" component={() => <TasksPage snapshot={snapshot} />} />
+              <Route path="/agent" component={MobileAgentPage} />
+              <Route path="/workspace" component={WorkspacePage} />
+              <Route path="/terminal" component={TerminalPage} />
               <Route path="/inbox" component={() => <InboxPage snapshot={snapshot} />} />
               <Route path="/queue" component={() => <QueuePage snapshot={snapshot} />} />
               <Route path="/memory" component={() => <MemoryPage snapshot={snapshot} />} />
