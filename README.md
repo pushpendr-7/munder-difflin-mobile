@@ -32,6 +32,16 @@ This first native shell is a streamed subprocess, **not a pseudo-terminal (PTY)*
 
 The native Files and Terminal screens work only in the installed Android APK. A mobile browser/PWA has no access to this plugin, and the Android app's private workspace is separate from shared phone storage. Phone-only mode still uses the configured AI service for agent-style replies; it does not run the desktop Electron app's local PTY, SQLite, Git integration, or autonomous coding-agent tools.
 
+## On-device mobile coding agent
+
+The Android APK includes a **Code agent** screen that uses the configured OmniRoute OpenAI-compatible chat-completions endpoint. The selected model must support OpenAI-style tool calling. The agent can list and read files inside the APK's private workspace; it asks for approval before creating or replacing a file, creating a folder, or running a shell command. A turn is capped at eight model/tool rounds and twelve tool actions.
+
+Prompts and any workspace file contents the agent reads are sent to the OmniRoute endpoint configured on the phone. The API key remains in the phone's WebView local storage. Do not use a shared or untrusted device for a sensitive key.
+
+**Command warning:** Approved shell commands run as the Android app's UID. The shell is not jailed to the workspace and can access other files Android permits to this app; a command could expose local app data, including the configured key. Review every command and approve only commands you trust. The agent never runs a command without a separate in-app approval.
+
+The Code agent and native workspace tools are Android-APK-only; the PWA/browser does not have the Capacitor runtime. Commands are still limited by the programs available on Android: the APK does not bundle Node.js, Python, Git, or provider CLIs.
+
 ## Optional connection to a deployed office API
 
 To load live office data from an already deployed API, set `api_base_url` when manually running the **Build Android APK** workflow, or configure the repository variable `MUNDER_API_BASE_URL`. In this mode the deployed API is the source of truth and the phone-only queue worker is not installed. This connection is optional; it is not required to launch the phone app in phone-only mode.
